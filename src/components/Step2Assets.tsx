@@ -1,4 +1,4 @@
-import { UserInput, CommercialAnnuity } from '@/engine';
+import { UserInput, CommercialInsurance, REGION_DATA } from '@/engine';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -18,27 +18,29 @@ export function Step2Assets({ input, onChange }: Step2AssetsProps) {
     onChange({ ...input, ...updates });
   };
 
-  const addAnnuity = () => {
-    const newAnnuity: CommercialAnnuity = {
-      type: 'annuity_insurance',
-      monthlyPayment: 0,
-      policyEndAge: input.retirementAge,
-      monthlyBenefit: 0,
-      estimatedTotalValue: 0,
+  const addInsurance = () => {
+    const newInsurance: CommercialInsurance = {
+      premiumStartAge: input.currentAge,
+      premiumYears: 10,
+      annualPremium: 0,
+      benefitStartAge: input.retirementAge,
+      benefitType: 'annual',
+      benefitAmount: 0,
+      benefitYears: 0,
     };
-    update({ commercialAnnuities: [...input.commercialAnnuities, newAnnuity] });
+    update({ commercialInsurances: [...input.commercialInsurances, newInsurance] });
   };
 
-  const removeAnnuity = (index: number) => {
+  const removeInsurance = (index: number) => {
     update({
-      commercialAnnuities: input.commercialAnnuities.filter((_, i) => i !== index),
+      commercialInsurances: input.commercialInsurances.filter((_, i) => i !== index),
     });
   };
 
-  const updateAnnuity = (index: number, updates: Partial<CommercialAnnuity>) => {
-    const newAnnuities = [...input.commercialAnnuities];
-    newAnnuities[index] = { ...newAnnuities[index], ...updates };
-    update({ commercialAnnuities: newAnnuities });
+  const updateInsurance = (index: number, updates: Partial<CommercialInsurance>) => {
+    const newInsurances = [...input.commercialInsurances];
+    newInsurances[index] = { ...newInsurances[index], ...updates };
+    update({ commercialInsurances: newInsurances });
   };
 
   return (
@@ -90,17 +92,29 @@ export function Step2Assets({ input, onChange }: Step2AssetsProps) {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">缴费基数上下限</span>
                 <span className="font-medium">
-                  {input.province ? (() => {
-                    // 简单查找，实际应该从 regionData 导入
-                    const dummyData = { contribBaseLower: 3600, contribBaseUpper: 18000 };
-                    return `${formatCurrency(dummyData.contribBaseLower)} - ${formatCurrency(dummyData.contribBaseUpper)}`;
-                  })() : '请先选择省份'}
+                  {input.province && REGION_DATA[input.province]
+                    ? `${formatCurrency(REGION_DATA[input.province].contribBaseLower)} - ${formatCurrency(REGION_DATA[input.province].contribBaseUpper)}`
+                    : '请先选择省份'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">社平工资增速</span>
                 <span className="font-medium">{(input.socialWageGrowthRate * 100).toFixed(1)}%</span>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="socialInsuranceAccountBalance">社保个人账户余额（可选）</Label>
+              <Input
+                id="socialInsuranceAccountBalance"
+                type="number"
+                min={0}
+                value={input.socialInsuranceAccountBalance ?? 0}
+                onChange={(e) => update({ socialInsuranceAccountBalance: Number(e.target.value) })}
+              />
+              <p className="text-xs text-muted-foreground">
+                从社保App → 我的账户中查询实际余额；不填则按缴费年限自动估算（可能偏高）
+              </p>
             </div>
 
             <div className="flex items-center justify-between">
@@ -194,117 +208,151 @@ export function Step2Assets({ input, onChange }: Step2AssetsProps) {
         </Card>
       </div>
 
-      {/* 商业养老保险 */}
+      {/* 商业保险 */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-lg">商业养老保险</CardTitle>
-            <CardDescription>可添加多份保单</CardDescription>
+            <CardTitle className="text-lg">商业保险</CardTitle>
+            <CardDescription>可添加多份保单，金额填写保单约定的确定值</CardDescription>
           </div>
-          <Button variant="secondary" size="sm" onClick={addAnnuity}>
+          <Button variant="secondary" size="sm" onClick={addInsurance}>
             <Plus className="w-4 h-4 mr-2" />
             添加一份
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {input.commercialAnnuities.length === 0 ? (
+          {input.commercialInsurances.length === 0 ? (
             <p className="text-muted-foreground text-sm text-center py-4">
-              暂时未添加商业养老保险
+              暂时未添加商业保险
             </p>
           ) : (
-            input.commercialAnnuities.map((annuity, index) => (
+            input.commercialInsurances.map((ins, index) => (
               <Card key={index} className="border-l-4 border-l-primary">
                 <CardHeader className="flex flex-row items-start justify-between pb-3">
                   <CardTitle className="text-base">第 {index + 1} 份保单</CardTitle>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => removeAnnuity(index)}
+                    onClick={() => removeInsurance(index)}
                     className="text-destructive"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* 缴费信息 */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor={`premium-start-${index}`}>缴费开始年龄</Label>
+                      <Input
+                        id={`premium-start-${index}`}
+                        type="number"
+                        min={input.currentAge}
+                        max={80}
+                        value={ins.premiumStartAge}
+                        onChange={(e) => updateInsurance(index, { premiumStartAge: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`premium-years-${index}`}>缴费年数</Label>
+                      <Input
+                        id={`premium-years-${index}`}
+                        type="number"
+                        min={1}
+                        max={40}
+                        value={ins.premiumYears}
+                        onChange={(e) => updateInsurance(index, { premiumYears: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`annual-premium-${index}`}>年缴保费（元）</Label>
+                      <Input
+                        id={`annual-premium-${index}`}
+                        type="number"
+                        min={0}
+                        value={ins.annualPremium}
+                        onChange={(e) => updateInsurance(index, { annualPremium: Number(e.target.value) })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 领取信息 */}
                   <div className="space-y-2">
-                    <Label>保险类型</Label>
+                    <Label>领取方式</Label>
                     <RadioGroup
-                      value={annuity.type}
-                      onValueChange={(v: string) =>
-                        updateAnnuity(index, { type: v as 'annuity_insurance' | 'savings_insurance' | 'participating' })
+                      value={ins.benefitType}
+                      onValueChange={(v) =>
+                        updateInsurance(index, { benefitType: v as 'lump_sum' | 'annual' })
                       }
-                      className="space-y-2"
+                      className="flex gap-6"
                     >
                       <div className="flex items-center gap-2">
-                        <RadioGroupItem value="annuity_insurance" id={`type-annuity-${index}`} />
-                        <Label htmlFor={`type-annuity-${index}`}>
-                          年金险（确定收入）
-                        </Label>
+                        <RadioGroupItem value="annual" id={`benefit-annual-${index}`} />
+                        <Label htmlFor={`benefit-annual-${index}`}>每年领取</Label>
                       </div>
                       <div className="flex items-center gap-2">
-                        <RadioGroupItem value="savings_insurance" id={`type-savings-${index}`} />
-                        <Label htmlFor={`type-savings-${index}`}>
-                          储蓄险（增额寿/万能险）
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <RadioGroupItem value="participating" id={`type-participating-${index}`} />
-                        <Label htmlFor={`type-participating-${index}`}>
-                          分红险（收益不确定）
-                        </Label>
+                        <RadioGroupItem value="lump_sum" id={`benefit-lump-${index}`} />
+                        <Label htmlFor={`benefit-lump-${index}`}>一次性领取</Label>
                       </div>
                     </RadioGroup>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor={`monthly-payment-${index}`}>每月在缴保费（元）</Label>
-                    <Input
-                      id={`monthly-payment-${index}`}
-                      type="number"
-                      min={0}
-                      value={annuity.monthlyPayment}
-                      onChange={(e) => updateAnnuity(index, { monthlyPayment: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor={`policy-end-${index}`}>保单约定领取年龄</Label>
-                    <Input
-                      id={`policy-end-${index}`}
-                      type="number"
-                      min={50}
-                      max={80}
-                      value={annuity.policyEndAge}
-                      onChange={(e) => updateAnnuity(index, { policyEndAge: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  {annuity.type === 'annuity_insurance' ? (
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor={`monthly-benefit-${index}`}>约定每月领取金额（元）</Label>
+                      <Label htmlFor={`benefit-start-${index}`}>领取开始年龄</Label>
                       <Input
-                        id={`monthly-benefit-${index}`}
+                        id={`benefit-start-${index}`}
                         type="number"
-                        min={0}
-                        value={annuity.monthlyBenefit ?? 0}
-                        onChange={(e) => updateAnnuity(index, { monthlyBenefit: Number(e.target.value) })}
+                        min={40}
+                        max={90}
+                        value={ins.benefitStartAge}
+                        onChange={(e) => updateInsurance(index, { benefitStartAge: Number(e.target.value) })}
                       />
                     </div>
-                  ) : (
                     <div className="space-y-2">
-                      <Label htmlFor={`estimated-value-${index}`}>预计领取时账户价值（元）</Label>
+                      <Label htmlFor={`benefit-amount-${index}`}>
+                        {ins.benefitType === 'annual' ? '年领取金额（元）' : '一次性领取总额（元）'}
+                      </Label>
                       <Input
-                        id={`estimated-value-${index}`}
+                        id={`benefit-amount-${index}`}
                         type="number"
                         min={0}
-                        value={annuity.estimatedTotalValue ?? 0}
-                        onChange={(e) => updateAnnuity(index, { estimatedTotalValue: Number(e.target.value) })}
+                        value={ins.benefitAmount}
+                        onChange={(e) => updateInsurance(index, { benefitAmount: Number(e.target.value) })}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        可从保险公司演示文件读取保守情景值
-                      </p>
                     </div>
-                  )}
+                    {ins.benefitType === 'annual' && (
+                      <div className="space-y-2">
+                        <Label htmlFor={`benefit-years-${index}`}>可领年数（0=终身）</Label>
+                        <Input
+                          id={`benefit-years-${index}`}
+                          type="number"
+                          min={0}
+                          max={50}
+                          value={ins.benefitYears}
+                          onChange={(e) => updateInsurance(index, { benefitYears: Number(e.target.value) })}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 缴费摘要 */}
+                  <div className="text-xs text-muted-foreground p-3 bg-muted rounded-lg space-y-1">
+                    <div className="flex justify-between">
+                      <span>缴费期间</span>
+                      <span>{ins.premiumStartAge} ~ {ins.premiumStartAge + ins.premiumYears - 1} 岁，共 {ins.premiumYears} 年</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>累计保费</span>
+                      <span>{(ins.annualPremium * ins.premiumYears).toLocaleString()} 元</span>
+                    </div>
+                    {ins.benefitType === 'annual' && (
+                      <div className="flex justify-between">
+                        <span>月均领取</span>
+                        <span>{(ins.benefitAmount / 12).toFixed(0)} 元/月</span>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))

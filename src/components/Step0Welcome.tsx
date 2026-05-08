@@ -1,12 +1,14 @@
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { ChevronRight, Target, Layers, Wallet } from 'lucide-react';
+import { ChevronRight, Target, Layers, Wallet, TrendingUp, BookOpen } from 'lucide-react';
 
 interface Step0WelcomeProps {
   onStart: () => void;
+  onShowHistoricalData: () => void;
+  onShowPolicy: () => void;
 }
 
-export function Step0Welcome({ onStart }: Step0WelcomeProps) {
+export function Step0Welcome({ onStart, onShowHistoricalData, onShowPolicy }: Step0WelcomeProps) {
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -115,6 +117,39 @@ export function Step0Welcome({ onStart }: Step0WelcomeProps) {
           开始规划
           <ChevronRight className="w-5 h-5 ml-2" />
         </Button>
+      </div>
+
+      {/* 资源入口 */}
+      <div className="pt-8 border-t mt-8">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+          <div className="text-center">
+            <button
+              onClick={onShowHistoricalData}
+              className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-2 mx-auto group"
+            >
+              <TrendingUp className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>历史数据中心</span>
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+            <p className="text-xs text-gray-500 mt-1">
+              社平工资、利率、通胀、预期寿命
+            </p>
+          </div>
+          <div className="hidden sm:block w-px h-8 bg-gray-200" />
+          <div className="text-center">
+            <button
+              onClick={onShowPolicy}
+              className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-2 mx-auto group"
+            >
+              <BookOpen className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>养老政策说明</span>
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+            <p className="text-xs text-gray-500 mt-1">
+              计发基数改革与制度演变
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

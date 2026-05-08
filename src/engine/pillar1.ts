@@ -7,8 +7,12 @@ export interface Pillar1Result {
   total: number;
 }
 
-export function calcPillar1(input: UserInput, totalContributionYears: number): Pillar1Result {
-  const yearsToRetirement = input.retirementAge - input.currentAge;
+export function calcPillar1(
+  input: UserInput,
+  totalContributionYears: number,
+  options?: { payMonthsAdjust?: number },
+): Pillar1Result {
+  const yearsToRetirement = Math.max(0, input.retirementAge - input.currentAge);
 
   // 退休时社平工资
   const socialWageAtRetirement = input.avgSocialWage *
@@ -25,13 +29,18 @@ export function calcPillar1(input: UserInput, totalContributionYears: number): P
   const personalAccountRate = 0.04; // 保守估计记账利率
   const currentMonthlyContrib = input.avgSocialWage * input.contributionRatio * 0.08;
 
-  // 历史缴费积累（简化处理：假设从22岁开始工作）
-  const pastYears = input.contributionYears;
-  // 历史缴费以当前社平工资估算，复利到退休
-  const pastAccountBalance = currentMonthlyContrib * 12 *
-    (Math.pow(1 + personalAccountRate, pastYears) - 1) / personalAccountRate;
-  const pastAccountBalanceAtRetirement = pastAccountBalance *
-    Math.pow(1 + personalAccountRate, yearsToRetirement);
+  // 历史余额：优先使用用户填入的实际余额，否则按缴费年限估算
+  let pastAccountBalanceAtRetirement: number;
+  if (input.socialInsuranceAccountBalance && input.socialInsuranceAccountBalance > 0) {
+    pastAccountBalanceAtRetirement = input.socialInsuranceAccountBalance *
+      Math.pow(1 + personalAccountRate, yearsToRetirement);
+  } else {
+    const pastYears = input.contributionYears;
+    const pastAccountBalance = currentMonthlyContrib * 12 *
+      (Math.pow(1 + personalAccountRate, pastYears) - 1) / personalAccountRate;
+    pastAccountBalanceAtRetirement = pastAccountBalance *
+      Math.pow(1 + personalAccountRate, yearsToRetirement);
+  }
 
   // 未来缴费积累
   const futureAccountBalance = currentMonthlyContrib * 12 *
@@ -39,8 +48,8 @@ export function calcPillar1(input: UserInput, totalContributionYears: number): P
 
   const totalAccountBalance = pastAccountBalanceAtRetirement + futureAccountBalance;
 
-  // 计发月数
-  const payMonths = getPayMonths(input.retirementAge);
+  // 计发月数（支持情景分析中的政策风险调整）
+  const payMonths = getPayMonths(input.retirementAge) + (options?.payMonthsAdjust ?? 0);
   const accountPension = totalAccountBalance / payMonths;
 
   return {

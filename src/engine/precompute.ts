@@ -11,8 +11,8 @@ export interface PrecomputeResult {
 }
 
 export function precompute(input: UserInput): PrecomputeResult {
-  const yearsToRetirement = input.retirementAge - input.currentAge;
-  const yearsInRetirement = input.lifeExpectancy - input.retirementAge;
+  const yearsToRetirement = Math.max(0, input.retirementAge - input.currentAge);
+  const yearsInRetirement = Math.max(0, input.lifeExpectancy - input.retirementAge);
   const totalContributionYears = input.contributionYears + yearsToRetirement;
 
   const allocationMap = RISK_ALLOCATION;

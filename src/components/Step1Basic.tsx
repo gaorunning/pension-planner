@@ -16,6 +16,19 @@ export function Step1Basic({ input, onChange }: Step1BasicProps) {
     onChange({ ...input, ...updates });
   };
 
+  const handleCurrentAgeChange = (currentAge: number) => {
+    update({
+      currentAge,
+      retirementAge: Math.max(input.retirementAge, currentAge + 1),
+    });
+  };
+
+  const handleRetirementAgeChange = (retirementAge: number) => {
+    update({
+      retirementAge: Math.max(retirementAge, input.currentAge + 1),
+    });
+  };
+
   const handleProvinceChange = (province: string) => {
     const region = REGION_DATA[province];
     update({
@@ -57,7 +70,7 @@ export function Step1Basic({ input, onChange }: Step1BasicProps) {
                 min={22}
                 max={65}
                 value={input.currentAge}
-                onChange={(e) => update({ currentAge: Number(e.target.value) })}
+                onChange={(e) => handleCurrentAgeChange(Number(e.target.value))}
               />
             </div>
 
@@ -66,10 +79,10 @@ export function Step1Basic({ input, onChange }: Step1BasicProps) {
               <Input
                 id="retirementAge"
                 type="number"
-                min={50}
+                min={Math.max(50, input.currentAge + 1)}
                 max={70}
                 value={input.retirementAge}
-                onChange={(e) => update({ retirementAge: Number(e.target.value) })}
+                onChange={(e) => handleRetirementAgeChange(Number(e.target.value))}
               />
             </div>
 
@@ -137,9 +150,9 @@ export function Step1Basic({ input, onChange }: Step1BasicProps) {
               <Input
                 id="monthlyIncome"
                 type="number"
-                min={0}
+                min={1}
                 value={input.monthlyIncome}
-                onChange={(e) => update({ monthlyIncome: Number(e.target.value) })}
+                onChange={(e) => update({ monthlyIncome: Math.max(1, Number(e.target.value)) })}
               />
             </div>
 

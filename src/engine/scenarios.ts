@@ -11,9 +11,9 @@ export function calcScenarios(
   baseInflation: number,
 ): RetirementScenario[] {
   const scenarios = [
-    { name: '乐观' as const, returnDelta: 0.015, inflationDelta: -0.01 },
-    { name: '基准' as const, returnDelta: 0, inflationDelta: 0 },
-    { name: '悲观' as const, returnDelta: -0.015, inflationDelta: 0.01 },
+    { name: '乐观' as const, returnDelta: 0.015, inflationDelta: -0.01, wageDelta: 0.01,  payMonthsAdjust: -12 },
+    { name: '基准' as const, returnDelta: 0,      inflationDelta: 0,     wageDelta: 0,     payMonthsAdjust: 0 },
+    { name: '悲观' as const, returnDelta: -0.015, inflationDelta: 0.01,  wageDelta: -0.01, payMonthsAdjust: 24 },
   ];
 
   return scenarios.map(scenario => {
@@ -23,12 +23,14 @@ export function calcScenarios(
     // 创建临时 input 用于计算
     const scenarioInput = { ...input };
     scenarioInput.inflationRate = inflation;
+    scenarioInput.socialWageGrowthRate = input.socialWageGrowthRate + scenario.wageDelta;
 
     const pre = precompute(scenarioInput);
-    const pillar1 = calcPillar1(scenarioInput, pre.totalContributionYears);
+    const pillar1 = calcPillar1(scenarioInput, pre.totalContributionYears,
+      { payMonthsAdjust: scenario.payMonthsAdjust });
     const pillar2 = calcPillar2(scenarioInput, pre.yearsToRetirement);
-    const commercialAnnuity = calcCommercialAnnuityMonthly(scenarioInput);
     const pool = calcRetirementPool(scenarioInput, pre.yearsToRetirement, nominalReturn);
+    const commercialAnnuity = calcCommercialAnnuityMonthly(scenarioInput, pool.expectedReturnDecum);
 
     const { targetMonthlyToday, targetMonthlyAtRetirement } = calcTarget({
       monthlyIncome: scenarioInput.monthlyIncome,
@@ -62,6 +64,8 @@ export function calcScenarios(
       name: scenario.name,
       returnAssumption: nominalReturn,
       inflationAssumption: inflation,
+      wageGrowthAssumption: scenarioInput.socialWageGrowthRate,
+      payMonthsAdjust: scenario.payMonthsAdjust,
       monthlyGap,
       totalGapPV,
       adequacyRatio: Math.min(2, adequacyRatio),

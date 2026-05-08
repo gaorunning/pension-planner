@@ -2,9 +2,8 @@ import { UserInput, calculatePlan } from '@/engine';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { formatCurrency, formatPercent } from '@/lib/utils';
 import { AssetGrowthChart } from './charts/AssetGrowthChart';
-import { ReplacementRateChart } from './charts/ReplacementRateChart';
-import { IncomeBreakdownChart } from './charts/IncomeBreakdownChart';
-import { AlertTriangle, CheckCircle2, Target } from 'lucide-react';
+import { LifetimeCashFlowChart } from './charts/LifetimeCashFlowChart';
+import { AlertTriangle, CheckCircle2, Target, Wallet } from 'lucide-react';
 
 interface Step4ReportProps {
   input: UserInput;
@@ -34,15 +33,10 @@ export function Step4Report({ input }: Step4ReportProps) {
     comfortable: '准备充分',
   }[plan.adequacyLevel];
 
-  // 收入构成数据（折现到今天）
-  const incomeItems = [
-    { label: '基本养老金', value: plan.pillar1Monthly / Math.pow(1 + input.inflationRate, plan.yearsToRetirement), color: '#3b82f6' },
-    { label: '企业年金', value: plan.pillar2Monthly / Math.pow(1 + input.inflationRate, plan.yearsToRetirement), color: '#22c55e' },
-    { label: '商业年金险', value: plan.commercialAnnuityMonthly / Math.pow(1 + input.inflationRate, plan.yearsToRetirement), color: '#a855f7' },
-    { label: '资金池提取', value: plan.assetPoolMonthly / Math.pow(1 + input.inflationRate, plan.yearsToRetirement), color: '#f97316' },
-  ];
-
-  const totalIncomeToday = incomeItems.reduce((sum, item) => sum + item.value, 0);
+  const pv = (v: number) => v / Math.pow(1 + input.inflationRate, plan.yearsToRetirement);
+  const totalIncomeToday =
+    pv(plan.pillar1Monthly) + pv(plan.pillar2Monthly) +
+    pv(plan.commercialAnnuityMonthly) + pv(plan.assetPoolMonthly);
 
   return (
     <div className="space-y-8">
@@ -154,69 +148,117 @@ export function Step4Report({ input }: Step4ReportProps) {
         </CardContent>
       </Card>
 
-      {/* 4. 替代率对比图 */}
+      {/* 4. 养老投入现金流 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">收入替代率对比</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-primary" />
+            养老投入现金流
+          </CardTitle>
         </CardHeader>
-        <CardContent className="flex justify-center">
-          <ReplacementRateChart
-            currentMonthlyIncome={input.monthlyIncome}
-            targetMonthlyToday={plan.targetMonthlyToday}
-            actualMonthlyToday={totalIncomeToday}
-            targetRate={input.replacementRate}
-            actualRate={totalIncomeToday / input.monthlyIncome}
-          />
-        </CardContent>
-      </Card>
-
-      {/* 5. 收入构成堆叠图 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">收入构成（今日购买力）</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center">
-          <IncomeBreakdownChart
-            targetValue={plan.targetMonthlyToday}
-            items={incomeItems}
-            gapValue={plan.monthlyGap}
-          />
-        </CardContent>
-      </Card>
-
-      {/* 6. 情景分析 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">情景分析</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-3 gap-6">
-            {plan.scenarios.map((scenario) => (
-              <div key={scenario.name} className="space-y-2 p-4 bg-muted rounded-lg">
-                <h4 className="font-semibold text-lg">{scenario.name}</h4>
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">回报率</span>
-                    <span>{formatPercent(scenario.returnAssumption)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">通胀</span>
-                    <span>{formatPercent(scenario.inflationAssumption)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">充足率</span>
-                    <span className={getAdequacyColor(scenario.adequacyRatio)}>
-                      {(scenario.adequacyRatio * 100).toFixed(0)}%
+        <CardContent className="space-y-6">
+          {/* 当前年度摘要 */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-muted-foreground">当前年度月均支出</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#3b82f6]" />
+                    个人养老金
+                  </span>
+                  <span>{formatCurrency(plan.annualCashFlow.personalPensionMonthly)}/月</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#a855f7]" />
+                    商业险保费（在缴）
+                  </span>
+                  <span>{formatCurrency(plan.annualCashFlow.activeInsurancePremiumMonthly)}/月</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#f97316]" />
+                    养老定投
+                  </span>
+                  <span>{formatCurrency(plan.annualCashFlow.dedicatedSavingMonthly)}/月</span>
+                </div>
+                <div className="flex justify-between font-medium border-t pt-2 mt-1">
+                  <span>已承诺合计</span>
+                  <span>
+                    {formatCurrency(plan.annualCashFlow.totalCommittedMonthly)}/月
+                    <span className="ml-2 text-muted-foreground font-normal">
+                      ({(plan.annualCashFlow.committedRatioOfIncome * 100).toFixed(1)}% 收入)
                     </span>
-                  </div>
+                  </span>
+                </div>
+                <div className="flex justify-between text-red-600">
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#ef4444]" />
+                    建议补充储蓄
+                  </span>
+                  <span>{formatCurrency(plan.annualCashFlow.requiredAdditionalMonthly)}/月</span>
+                </div>
+                <div className="flex justify-between font-semibold border-t pt-2">
+                  <span>全部合计</span>
+                  <span>
+                    {formatCurrency(plan.annualCashFlow.totalRequiredMonthly)}/月
+                    <span className="ml-2 text-muted-foreground font-normal">
+                      ({(plan.annualCashFlow.totalRequiredRatioOfIncome * 100).toFixed(1)}% 收入)
+                    </span>
+                  </span>
+                </div>
+                <div className="flex justify-between text-muted-foreground text-xs pt-1 border-t">
+                  <span>社保个人缴费（参考，已代扣）</span>
+                  <span>{formatCurrency(plan.annualCashFlow.socialSecurityPersonalMonthly)}/月</span>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* 右侧：可负担性提示 */}
+            <div className="flex flex-col justify-center space-y-3">
+              {plan.annualCashFlow.totalRequiredRatioOfIncome > 0.5 ? (
+                <div className="p-4 bg-red-50 rounded-lg text-sm text-red-700 space-y-1">
+                  <p className="font-semibold">负担较重</p>
+                  <p>
+                    按当前规划，养老投入将占月收入的{' '}
+                    {(plan.annualCashFlow.totalRequiredRatioOfIncome * 100).toFixed(0)}%，
+                    建议重新评估目标替代率或延长退休年龄。
+                  </p>
+                </div>
+              ) : plan.annualCashFlow.totalRequiredRatioOfIncome > 0.3 ? (
+                <div className="p-4 bg-yellow-50 rounded-lg text-sm text-yellow-700 space-y-1">
+                  <p className="font-semibold">负担适中</p>
+                  <p>
+                    养老投入占月收入的{' '}
+                    {(plan.annualCashFlow.totalRequiredRatioOfIncome * 100).toFixed(0)}%，
+                    处于合理区间，注意短期流动性。
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 bg-green-50 rounded-lg text-sm text-green-700 space-y-1">
+                  <p className="font-semibold">负担可控</p>
+                  <p>
+                    养老投入占月收入的{' '}
+                    {(plan.annualCashFlow.totalRequiredRatioOfIncome * 100).toFixed(0)}%，
+                    在可承受范围内。
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 全生命周期现金流时序图 */}
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-3">
+              养老现金流时序（积累期投入 / 退休后收入）
+            </p>
+            <LifetimeCashFlowChart plan={plan} input={input} />
           </div>
         </CardContent>
       </Card>
 
-      {/* 7. 行动建议卡片 */}
+      {/* 8. 行动建议卡片 */}
       <div className="grid md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
@@ -277,7 +319,7 @@ export function Step4Report({ input }: Step4ReportProps) {
         </Card>
       </div>
 
-      {/* 8. 政策风险提示 */}
+      {/* 9. 政策风险提示 */}
       <Card className="border-l-4 border-l-yellow-500">
         <CardHeader className="flex flex-row items-center gap-2 pb-2">
           <AlertTriangle className="w-5 h-5 text-yellow-600" />
@@ -286,14 +328,15 @@ export function Step4Report({ input }: Step4ReportProps) {
         <CardContent className="text-sm space-y-2 text-muted-foreground">
           <p>以下政策变化可能影响您的规划，建议每 1-2 年重新测算：</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>退休年龄改革：男性正式退休年龄预计逐步从 60 岁延至 63 岁；当前弹性退休政策已允许提前 3 年退休，但养老金会相应减少</li>
-            <li>个人账户利率下行：2024 年记账利率仅 2.62%，为历史最低；本规划使用 4% 保守估算</li>
-            <li>养老金并轨与待遇计算调整：历次改革均按老人老办法过渡</li>
+            <li>退休年龄进一步延迟：2025年改革将法定退休年龄逐步延至男63岁、女55/58岁，但随着预期寿命继续延长与养老金收支压力加大，未来10-20年内可能再次上调；若您当前设定的退休年龄低于届时法定年龄，可能无法按计划领取社保</li>
+            <li>计发月数上调：个人账户月领金额 = 余额 ÷ 计发月数，政府可能依据寿命数据更新计发月数表，导致月领金额下降</li>
+            <li>个人账户利率下行：2024年记账利率仅 2.62%，为历史最低；本规划使用 4% 保守估算</li>
+            <li>养老金待遇计算调整：历次改革均按老人老办法过渡，但过渡期计算规则仍存在不确定性</li>
           </ul>
         </CardContent>
       </Card>
 
-      {/* 9. 行动清单 */}
+      {/* 10. 行动清单 */}
       <Card className="border-l-4 border-l-blue-500">
         <CardHeader className="flex flex-row items-center gap-2 pb-2">
           <CheckCircle2 className="w-5 h-5 text-blue-600" />

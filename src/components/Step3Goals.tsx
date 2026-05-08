@@ -119,7 +119,7 @@ export function Step3Goals({ input, onChange }: Step3GoalsProps) {
               />
               <div>
                 <p className="font-medium">保守</p>
-                <p className="text-sm text-muted-foreground">股债40/60，预期年化4.5%</p>
+                <p className="text-sm text-muted-foreground">股债40/60，预期年化3.5%</p>
               </div>
             </div>
 
@@ -131,7 +131,7 @@ export function Step3Goals({ input, onChange }: Step3GoalsProps) {
               />
               <div>
                 <p className="font-medium">稳健（推荐）</p>
-                <p className="text-sm text-muted-foreground">股债60/40，预期年化5.5%</p>
+                <p className="text-sm text-muted-foreground">股债60/40，预期年化4.5%</p>
               </div>
             </div>
 
@@ -143,7 +143,7 @@ export function Step3Goals({ input, onChange }: Step3GoalsProps) {
               />
               <div>
                 <p className="font-medium">积极</p>
-                <p className="text-sm text-muted-foreground">股债80/20，预期年化6.5%</p>
+                <p className="text-sm text-muted-foreground">股债80/20，预期年化5.5%</p>
               </div>
             </div>
           </CardContent>

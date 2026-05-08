@@ -12,6 +12,7 @@ export function createDefaultInput(): UserInput {
     contributionYears: 10,
     contributionRatio: 1.0,
     avgSocialWage: 12049,
+    socialInsuranceAccountBalance: 0,
     hasEnterpriseAnnuity: false,
     annuityMonthly: 0,
 
@@ -20,7 +21,7 @@ export function createDefaultInput(): UserInput {
     personalPensionAnnual: 0,
     personalPensionCurrentBalance: 0,
     personalPensionContribYears: 0,
-    commercialAnnuities: [],
+    commercialInsurances: [],
 
     replacementRate: 0.75,
     riskProfile: 'moderate',

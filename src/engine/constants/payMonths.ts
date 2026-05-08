@@ -52,7 +52,7 @@ export const DEFAULT_LIFE_EXPECTANCY: Record<'male' | 'female', number> = {
 
 // 风险偏好对应的资产配置
 export const RISK_ALLOCATION = {
-  conservative: { equityPct: 0.40, bondPct: 0.60, expectedReturn: 0.045 },
-  moderate: { equityPct: 0.60, bondPct: 0.40, expectedReturn: 0.055 },
-  aggressive: { equityPct: 0.80, bondPct: 0.20, expectedReturn: 0.065 },
+  conservative: { equityPct: 0.40, bondPct: 0.60, expectedReturn: 0.035 },
+  moderate: { equityPct: 0.60, bondPct: 0.40, expectedReturn: 0.045 },
+  aggressive: { equityPct: 0.80, bondPct: 0.20, expectedReturn: 0.055 },
 } as const;

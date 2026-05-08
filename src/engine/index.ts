@@ -1,4 +1,4 @@
-import { UserInput, RetirementPlan, Pillar3Advice, AssetAllocation, YearlyDataPoint } from './types';
+import { UserInput, RetirementPlan, Pillar3Advice, AssetAllocation, YearlyDataPoint, AnnualCashFlow, AnnualCashFlowYear } from './types';
 import { precompute } from './precompute';
 import { calcPillar1 } from './pillar1';
 import { calcPillar2 } from './pillar2';
@@ -6,6 +6,67 @@ import { calcRetirementPool, calcCommercialAnnuityMonthly } from './retirementPo
 import { calcTarget, calcTotalFundingNeeded, calcRequiredMonthlySaving } from './gap';
 import { calcScenarios } from './scenarios';
 import { RISK_ALLOCATION } from './constants/payMonths';
+
+function calcAnnualCashFlow(input: UserInput, requiredMonthlySaving: number): AnnualCashFlow {
+  // 当前年度各项月均支出
+  const personalPensionMonthly = input.personalPensionAnnual / 12;
+  const dedicatedSavingMonthly = input.monthlyDedicatedSaving;
+
+  // 当前活跃的商业险保单（当前年龄在缴费期内）
+  const activeInsurancePremiumMonthly = input.commercialInsurances
+    .filter(c =>
+      input.currentAge >= c.premiumStartAge &&
+      input.currentAge < c.premiumStartAge + c.premiumYears,
+    )
+    .reduce((sum, c) => sum + c.annualPremium / 12, 0);
+
+  // 社保个人缴费（参考项，已从工资代扣，8% × 缴费基数）
+  const socialSecurityPersonalMonthly = input.avgSocialWage * input.contributionRatio * 0.08;
+  const monthlyIncome = Math.max(1, input.monthlyIncome);
+
+  const totalCommittedMonthly = personalPensionMonthly + activeInsurancePremiumMonthly + dedicatedSavingMonthly;
+  const committedRatioOfIncome = totalCommittedMonthly / monthlyIncome;
+
+  const totalRequiredMonthly = totalCommittedMonthly + requiredMonthlySaving;
+  const totalRequiredRatioOfIncome = totalRequiredMonthly / monthlyIncome;
+
+  // 逐年负担（从当前年龄到退休）
+  const yearsToRetirement = Math.max(0, input.retirementAge - input.currentAge);
+  const yearlyBurden: AnnualCashFlowYear[] = [];
+
+  for (let i = 0; i <= yearsToRetirement; i++) {
+    const age = input.currentAge + i;
+    const isRetired = age >= input.retirementAge;
+
+    const insurancePremium = isRetired ? 0 : input.commercialInsurances
+      .filter(c => age >= c.premiumStartAge && age < c.premiumStartAge + c.premiumYears)
+      .reduce((sum, c) => sum + c.annualPremium / 12, 0);
+
+    const pp = isRetired ? 0 : personalPensionMonthly;
+    const ds = isRetired ? 0 : dedicatedSavingMonthly;
+
+    yearlyBurden.push({
+      age,
+      insurancePremium,
+      personalPension: pp,
+      dedicatedSaving: ds,
+      total: insurancePremium + pp + ds,
+    });
+  }
+
+  return {
+    personalPensionMonthly,
+    activeInsurancePremiumMonthly,
+    dedicatedSavingMonthly,
+    socialSecurityPersonalMonthly,
+    totalCommittedMonthly,
+    committedRatioOfIncome,
+    requiredAdditionalMonthly: requiredMonthlySaving,
+    totalRequiredMonthly,
+    totalRequiredRatioOfIncome,
+    yearlyBurden,
+  };
+}
 
 function calcYearlyData(
   input: UserInput,
@@ -59,14 +120,15 @@ function calcYearlyData(
 }
 
 export function calculatePlan(input: UserInput): RetirementPlan {
+  const monthlyIncome = Math.max(1, input.monthlyIncome);
   const pre = precompute(input);
   const pillar1 = calcPillar1(input, pre.totalContributionYears);
   const pillar2 = calcPillar2(input, pre.yearsToRetirement);
-  const commercialAnnuity = calcCommercialAnnuityMonthly(input);
   const retirementPool = calcRetirementPool(input, pre.yearsToRetirement, pre.nominalReturn);
+  const commercialAnnuity = calcCommercialAnnuityMonthly(input, retirementPool.expectedReturnDecum);
 
   const { targetMonthlyToday, targetMonthlyAtRetirement } = calcTarget({
-    monthlyIncome: input.monthlyIncome,
+    monthlyIncome,
     replacementRate: input.replacementRate,
     inflationRate: input.inflationRate,
     yearsToRetirement: pre.yearsToRetirement,
@@ -127,6 +189,9 @@ export function calculatePlan(input: UserInput): RetirementPlan {
   // 年度数据（用于图表）
   const yearlyData = calcYearlyData(input, pre, retirementPool);
 
+  // 养老投入现金流
+  const annualCashFlow = calcAnnualCashFlow(input, requiredMonthlySaving);
+
   return {
     yearsToRetirement: pre.yearsToRetirement,
     yearsInRetirement: pre.yearsInRetirement,
@@ -160,9 +225,11 @@ export function calculatePlan(input: UserInput): RetirementPlan {
     adequacyRatio,
     adequacyLevel,
     yearlyData,
+    annualCashFlow,
   };
 }
 
 export * from './types';
 export * from './constants/regions';
 export * from './constants/payMonths';
+export { runMonteCarlo, defaultMCConfig, RETURN_PARAMS } from './monteCarlo';

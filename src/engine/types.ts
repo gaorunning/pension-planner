@@ -1,9 +1,11 @@
-export interface CommercialAnnuity {
-  type: 'annuity_insurance' | 'savings_insurance' | 'participating';
-  monthlyPayment: number;
-  policyEndAge: number;
-  monthlyBenefit?: number;
-  estimatedTotalValue?: number;
+export interface CommercialInsurance {
+  premiumStartAge: number;  // 缴费开始年龄
+  premiumYears: number;     // 缴费年数
+  annualPremium: number;    // 年缴保费（元）
+  benefitStartAge: number;  // 领取开始年龄
+  benefitType: 'lump_sum' | 'annual'; // 一次性领取 或 每年领取
+  benefitAmount: number;    // 一次性领取总额 或 年领取金额（元）
+  benefitYears: number;     // 可领取年数（0 = 终身）
 }
 
 export interface UserInput {
@@ -20,6 +22,7 @@ export interface UserInput {
   contributionYears: number;
   contributionRatio: number;
   avgSocialWage: number;
+  socialInsuranceAccountBalance?: number; // 社保个人账户当前余额（从社保App查询，可选）
   hasEnterpriseAnnuity: boolean;
   annuityMonthly: number;
 
@@ -29,7 +32,7 @@ export interface UserInput {
   personalPensionAnnual: number;
   personalPensionCurrentBalance: number;
   personalPensionContribYears: number;
-  commercialAnnuities: CommercialAnnuity[];
+  commercialInsurances: CommercialInsurance[];
 
   // Step 3: 目标与偏好
   replacementRate: 0.60 | 0.75 | 0.90;
@@ -79,9 +82,52 @@ export interface RetirementScenario {
   name: '乐观' | '基准' | '悲观';
   returnAssumption: number;
   inflationAssumption: number;
+  wageGrowthAssumption: number;
+  payMonthsAdjust: number;
   monthlyGap: number;
   totalGapPV: number;
   adequacyRatio: number;
+}
+
+export type { MonteCarloResult, MonteCarloYearBand, Percentiles } from './monteCarlo';
+
+export interface MCConfig {
+  pensionReturnMean: number;   // 个人养老金账户年化均值
+  pensionReturnSd: number;     // 个人养老金账户σ
+  savingsReturnMean: number;   // 专项储蓄年化均值
+  savingsReturnSd: number;     // 专项储蓄σ
+  wageGrowthMean: number;      // 社平工资增速均值
+  wageGrowthSd: number;        // 社平工资增速σ
+  lifeExpMean: number;         // 预期寿命均值
+  lifeExpSd: number;           // 预期寿命σ
+}
+
+export interface AnnualCashFlowYear {
+  age: number;
+  insurancePremium: number; // 当年活跃商业险保费
+  personalPension: number;  // 个人养老金（退休后归零）
+  dedicatedSaving: number;  // 养老定投（退休后归零）
+  total: number;
+}
+
+export interface AnnualCashFlow {
+  // 当前年度各项
+  personalPensionMonthly: number;
+  activeInsurancePremiumMonthly: number;
+  dedicatedSavingMonthly: number;
+  socialSecurityPersonalMonthly: number; // 参考项（代扣）
+
+  // 汇总（不含社保，因为无法选择）
+  totalCommittedMonthly: number;
+  committedRatioOfIncome: number;
+
+  // 补足缺口
+  requiredAdditionalMonthly: number;
+  totalRequiredMonthly: number;
+  totalRequiredRatioOfIncome: number;
+
+  // 逐年时序（从当前年龄到退休）
+  yearlyBurden: AnnualCashFlowYear[];
 }
 
 export interface RetirementPlan {
@@ -124,6 +170,10 @@ export interface RetirementPlan {
   adequacyRatio: number;
   adequacyLevel: 'critical' | 'warning' | 'adequate' | 'comfortable';
   yearlyData: YearlyDataPoint[];
+
+  // 养老投入现金流
+  annualCashFlow: AnnualCashFlow;
+
 }
 
 export interface RegionData {

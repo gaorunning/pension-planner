@@ -15,10 +15,10 @@ interface IncomeBreakdownChartProps {
 export function IncomeBreakdownChart({ targetValue, items, gapValue }: IncomeBreakdownChartProps) {
   const width = 600;
   const height = 280;
-  const padding = { top: 30, right: 30, bottom: 60, left: 180 };
+  const padding = { top: 30, right: 42, bottom: 60, left: 150 };
   const barHeight = 40;
   const barGap = 20;
-  const maxValue = targetValue * 1.1;
+  const maxValue = Math.max(targetValue * 1.2, 1);
 
   const xScale = (value: number) => {
     const innerWidth = width - padding.left - padding.right;
@@ -39,7 +39,7 @@ export function IncomeBreakdownChart({ targetValue, items, gapValue }: IncomeBre
     <div className="relative">
       <svg width={width} height={height} className="w-full">
         {/* X轴刻度 */}
-        {[0, 0.25, 0.5, 0.75, 1, 1.1].map((ratio, i) => {
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
           const x = xScale(targetValue * ratio);
           return (
             <g key={i}>
@@ -80,15 +80,6 @@ export function IncomeBreakdownChart({ targetValue, items, gapValue }: IncomeBre
                 rx={i === 0 ? 4 : 0}
                 style={i === allItems.length - 1 ? { borderTopRightRadius: 4, borderBottomRightRadius: 4 } : undefined}
               />
-              {/* 标签（左侧） */}
-              <text
-                x={padding.left - 10}
-                y={padding.top + (barHeight + barGap) + barHeight / 2 + 4}
-                textAnchor="end"
-                className="text-sm fill-gray-700"
-              >
-                {item.label}
-              </text>
               {/* 值标签（条上） */}
               {itemWidth > 60 && (
                 <text
@@ -112,6 +103,14 @@ export function IncomeBreakdownChart({ targetValue, items, gapValue }: IncomeBre
           className="text-sm font-bold fill-gray-800"
         >
           总目标
+        </text>
+        <text
+          x={padding.left - 10}
+          y={padding.top + (barHeight + barGap) + barHeight / 2 + 4}
+          textAnchor="end"
+          className="text-sm font-bold fill-gray-800"
+        >
+          可支配收入
         </text>
         <text
           x={targetX}
