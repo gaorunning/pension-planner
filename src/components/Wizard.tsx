@@ -33,8 +33,8 @@ export function Wizard({ onShowHistoricalData, onShowPolicy }: WizardProps) {
 
   const steps = [
     { id: 1, label: '基本信息' },
-    { id: 2, label: '养老底座' },
-    { id: 3, label: '目标偏好' },
+    { id: 2, label: '目标偏好' },
+    { id: 3, label: '养老底座' },
     { id: 4, label: '规划报告' },
     { id: 5, label: '概率分析' },
   ];
@@ -119,8 +119,8 @@ export function Wizard({ onShowHistoricalData, onShowPolicy }: WizardProps) {
         <div className="bg-white rounded-xl shadow-lg p-8">
           {step === 0 && <Step0Welcome onStart={start} onShowHistoricalData={onShowHistoricalData} onShowPolicy={onShowPolicy} />}
           {step === 1 && <Step1Basic input={input} onChange={handleInputChange} />}
-          {step === 2 && <Step2Assets input={input} onChange={handleInputChange} />}
-          {step === 3 && <Step3Goals input={input} onChange={handleInputChange} />}
+          {step === 2 && <Step3Goals input={input} onChange={handleInputChange} />}
+          {step === 3 && <Step2Assets input={input} onChange={handleInputChange} />}
           {step === 4 && <Step4Report input={input} />}
           {step === 5 && plan && (
             <Step5MonteCarlo

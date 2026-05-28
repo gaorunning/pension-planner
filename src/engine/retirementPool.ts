@@ -9,13 +9,14 @@ export function calcRetirementPool(
   const safeYearsToRetirement = Math.max(0, yearsToRetirement);
   const months_accum = safeYearsToRetirement * 12;
 
-  // 1. 个人养老金账户（年均4%保守）
-  const pensionR = 0.04 / 12;
+  // 1. 个人养老金账户
+  const pensionReturnRate = input.personalPensionReturn ?? 0.04;
+  const pensionR = pensionReturnRate / 12;
   const pensionCurrentBalance = input.personalPensionCurrentBalance > 0
     ? input.personalPensionCurrentBalance
     : input.personalPensionAnnual * input.personalPensionContribYears;
 
-  const pensionFV = pensionCurrentBalance * Math.pow(1 + 0.04, safeYearsToRetirement) +
+  const pensionFV = pensionCurrentBalance * Math.pow(1 + pensionReturnRate, safeYearsToRetirement) +
     (input.personalPensionAnnual / 12) *
     (Math.pow(1 + pensionR, months_accum) - 1) / pensionR;
 

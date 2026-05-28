@@ -35,10 +35,20 @@ export interface UserInput {
   commercialInsurances: CommercialInsurance[];
 
   // Step 3: 目标与偏好
+  targetMode: 'replacement_rate' | 'expense_based';
   replacementRate: 0.60 | 0.75 | 0.90;
+  // 费用测算模式（targetMode === 'expense_based'）
+  monthlyBasicExpense: number;        // 基本生活费/月（今日价格），默认 10000
+  monthlyCaregiverCost: number;       // 护工费用/月（今日价格），75岁后开始，默认 8000
+  monthlyNursingHomeCost: number;     // 养老院费用/月（今日价格），80岁后开始，默认 16000
   riskProfile: 'conservative' | 'moderate' | 'aggressive';
   inflationRate: number;
   socialWageGrowthRate: number;
+
+  // Override fields for sensitivity analysis in Step4
+  socialInsuranceRate?: number;    // 社保个人账户记账利率，default 0.04 in pillar1
+  personalPensionReturn?: number;  // 个人养老金账户收益率，default 0.04 in retirementPool
+  savingsReturn?: number;          // 个人储蓄资金池收益率，default from riskProfile
 }
 
 export interface RetirementPool {

@@ -26,7 +26,7 @@ export function calcPillar1(
     totalContributionYears * 0.01;
 
   // 个人账户余额计算
-  const personalAccountRate = 0.04; // 保守估计记账利率
+  const personalAccountRate = input.socialInsuranceRate ?? 0.04; // 保守估计记账利率
   const currentMonthlyContrib = input.avgSocialWage * input.contributionRatio * 0.08;
 
   // 历史余额：优先使用用户填入的实际余额，否则按缴费年限估算

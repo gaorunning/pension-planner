@@ -3,7 +3,7 @@ import { precompute } from './precompute';
 import { calcPillar1 } from './pillar1';
 import { calcPillar2 } from './pillar2';
 import { calcRetirementPool, calcCommercialAnnuityMonthly } from './retirementPool';
-import { calcTarget, calcTotalFundingNeeded } from './gap';
+import { calcTarget, calcTotalFundingNeeded, calcExpenseBasedTarget } from './gap';
 
 export function calcScenarios(
   input: UserInput,
@@ -32,33 +32,51 @@ export function calcScenarios(
     const pool = calcRetirementPool(scenarioInput, pre.yearsToRetirement, nominalReturn);
     const commercialAnnuity = calcCommercialAnnuityMonthly(scenarioInput, pool.expectedReturnDecum);
 
-    const { targetMonthlyToday, targetMonthlyAtRetirement } = calcTarget({
-      monthlyIncome: scenarioInput.monthlyIncome,
-      replacementRate: scenarioInput.replacementRate,
-      inflationRate: inflation,
-      yearsToRetirement: pre.yearsToRetirement,
-    });
+    let targetMonthlyToday: number;
+    let targetMonthlyAtRetirement: number;
+    let totalFundingNeeded: number;
+    let fixedIncomePV: number;
 
+    const realReturn = (1 + nominalReturn) / (1 + inflation) - 1;
     const fixedIncomeMonthly = pillar1.total + pillar2 + commercialAnnuity;
     const totalMonthlyIncome = fixedIncomeMonthly + pool.monthlyWithdrawal;
+
+    if (input.targetMode === 'expense_based') {
+      const expResult = calcExpenseBasedTarget(
+        {
+          monthlyBasicExpense: scenarioInput.monthlyBasicExpense,
+          monthlyCaregiverCost: scenarioInput.monthlyCaregiverCost,
+          monthlyNursingHomeCost: scenarioInput.monthlyNursingHomeCost,
+          currentAge: scenarioInput.currentAge,
+          retirementAge: scenarioInput.retirementAge,
+          lifeExpectancy: scenarioInput.lifeExpectancy,
+        },
+        nominalReturn,
+      );
+      targetMonthlyToday = expResult.targetMonthlyToday;
+      targetMonthlyAtRetirement = expResult.targetMonthlyAtRetirement;
+      totalFundingNeeded = expResult.totalFundingNeeded;
+      fixedIncomePV = calcTotalFundingNeeded(fixedIncomeMonthly, pre.yearsInRetirement, nominalReturn);
+    } else {
+      const target = calcTarget({
+        monthlyIncome: scenarioInput.monthlyIncome,
+        replacementRate: scenarioInput.replacementRate,
+        inflationRate: inflation,
+        wageGrowthRate: scenarioInput.socialWageGrowthRate,
+        yearsToRetirement: pre.yearsToRetirement,
+      });
+      targetMonthlyToday = target.targetMonthlyToday;
+      targetMonthlyAtRetirement = target.targetMonthlyAtRetirement;
+      totalFundingNeeded = calcTotalFundingNeeded(targetMonthlyAtRetirement, pre.yearsInRetirement, realReturn);
+      fixedIncomePV = calcTotalFundingNeeded(fixedIncomeMonthly, pre.yearsInRetirement, realReturn);
+    }
+
     const monthlyGap = Math.max(0, targetMonthlyToday - totalMonthlyIncome /
       Math.pow(1 + inflation, pre.yearsToRetirement));
 
-    const totalFundingNeeded = calcTotalFundingNeeded(
-      targetMonthlyAtRetirement,
-      pre.yearsInRetirement,
-      (1 + nominalReturn) / (1 + inflation) - 1,
-    );
-
-    const fixedIncomePV = calcTotalFundingNeeded(
-      fixedIncomeMonthly,
-      pre.yearsInRetirement,
-      (1 + nominalReturn) / (1 + inflation) - 1,
-    );
-
     const totalGapPV = Math.max(0, totalFundingNeeded - fixedIncomePV - pool.balanceAtRetirement);
 
-    const adequacyRatio = totalMonthlyIncome / (targetMonthlyAtRetirement);
+    const adequacyRatio = totalMonthlyIncome / targetMonthlyAtRetirement;
 
     return {
       name: scenario.name,

@@ -17,7 +17,7 @@ export function precompute(input: UserInput): PrecomputeResult {
 
   const allocationMap = RISK_ALLOCATION;
   const risk = allocationMap[input.riskProfile];
-  const nominalReturn = risk.expectedReturn;
+  const nominalReturn = input.savingsReturn ?? risk.expectedReturn;
   const realReturn = (1 + nominalReturn) / (1 + input.inflationRate) - 1;
 
   const allocation: AssetAllocation = {

@@ -2,6 +2,7 @@ import { UserInput, MCConfig } from './types';
 import { calcPillar1 } from './pillar1';
 import { calcPillar2 } from './pillar2';
 import { calcCommercialAnnuityMonthly } from './retirementPool';
+import { EXPENSE_INFLATION_RATES } from './gap';
 
 // 各风险偏好对应的年化回报均值和标准差
 // σ 基于组合波动率：保守(40/60)≈5%，稳健(60/40)≈9%，积极(80/20)≈14%
@@ -84,9 +85,12 @@ export function runMonteCarlo(
   const baseP1 = calcPillar1(input, totalContribYears);
   const accountPensionBase = baseP1.accountPension;
 
-  // 退休目标
-  const targetAtRetirement = monthlyIncome * input.replacementRate *
-    Math.pow(1 + input.inflationRate, yearsToRetirement);
+  // 退休目标月收入（名义值）
+  // 费用测算模式：使用基本生活费按其专项通胀率推算到退休时
+  // 替代率模式：替代率 × 退休时名义工资（与 gap.ts calcTarget 逻辑一致）
+  const targetAtRetirement = input.targetMode === 'expense_based'
+    ? input.monthlyBasicExpense * Math.pow(1 + EXPENSE_INFLATION_RATES.basic, yearsToRetirement)
+    : monthlyIncome * input.replacementRate * Math.pow(1 + config.wageGrowthMean, yearsToRetirement);
 
   // 提取期回报（保守）
   const decumMean = config.savingsReturnMean * 0.7;

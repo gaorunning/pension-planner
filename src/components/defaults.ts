@@ -23,9 +23,17 @@ export function createDefaultInput(): UserInput {
     personalPensionContribYears: 0,
     commercialInsurances: [],
 
+    targetMode: 'replacement_rate',
     replacementRate: 0.75,
+    monthlyBasicExpense: 10000,
+    monthlyCaregiverCost: 8000,
+    monthlyNursingHomeCost: 16000,
     riskProfile: 'moderate',
     inflationRate: 0.03,
     socialWageGrowthRate: 0.052,
+
+    socialInsuranceRate: 0.04,
+    personalPensionReturn: 0.04,
+    savingsReturn: undefined,  // will use riskProfile
   };
 }

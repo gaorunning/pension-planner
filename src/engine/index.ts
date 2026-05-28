@@ -3,7 +3,7 @@ import { precompute } from './precompute';
 import { calcPillar1 } from './pillar1';
 import { calcPillar2 } from './pillar2';
 import { calcRetirementPool, calcCommercialAnnuityMonthly } from './retirementPool';
-import { calcTarget, calcTotalFundingNeeded, calcRequiredMonthlySaving } from './gap';
+import { calcTarget, calcTotalFundingNeeded, calcRequiredMonthlySaving, calcExpenseBasedTarget } from './gap';
 import { calcScenarios } from './scenarios';
 import { RISK_ALLOCATION } from './constants/payMonths';
 
@@ -127,34 +127,58 @@ export function calculatePlan(input: UserInput): RetirementPlan {
   const retirementPool = calcRetirementPool(input, pre.yearsToRetirement, pre.nominalReturn);
   const commercialAnnuity = calcCommercialAnnuityMonthly(input, retirementPool.expectedReturnDecum);
 
-  const { targetMonthlyToday, targetMonthlyAtRetirement } = calcTarget({
-    monthlyIncome,
-    replacementRate: input.replacementRate,
-    inflationRate: input.inflationRate,
-    yearsToRetirement: pre.yearsToRetirement,
-  });
-
-  const totalFundingNeeded = calcTotalFundingNeeded(
-    targetMonthlyAtRetirement,
-    pre.yearsInRetirement,
-    pre.realReturn,
-  );
-
   const fixedIncomeMonthly = pillar1.total + pillar2 + commercialAnnuity;
   const assetPoolMonthly = retirementPool.monthlyWithdrawal;
   const totalMonthlyIncome = fixedIncomeMonthly + assetPoolMonthly;
 
-  // 将收入折现到今天以计算缺口
+  let targetMonthlyToday: number;
+  let targetMonthlyAtRetirement: number;
+  let totalFundingNeeded: number;
+  let fixedIncomePV: number;
+
+  if (input.targetMode === 'expense_based') {
+    // 费用测算模式：分三段计算（基本生活费 + 护工 + 养老院）
+    const expResult = calcExpenseBasedTarget(
+      {
+        monthlyBasicExpense: input.monthlyBasicExpense,
+        monthlyCaregiverCost: input.monthlyCaregiverCost,
+        monthlyNursingHomeCost: input.monthlyNursingHomeCost,
+        currentAge: input.currentAge,
+        retirementAge: input.retirementAge,
+        lifeExpectancy: input.lifeExpectancy,
+      },
+      pre.nominalReturn,
+    );
+    targetMonthlyToday = expResult.targetMonthlyToday;
+    targetMonthlyAtRetirement = expResult.targetMonthlyAtRetirement;
+    totalFundingNeeded = expResult.totalFundingNeeded;
+    // 名义收益率下固定收入的现值（与 totalFundingNeeded 同口径）
+    fixedIncomePV = calcTotalFundingNeeded(fixedIncomeMonthly, pre.yearsInRetirement, pre.nominalReturn);
+  } else {
+    // 替代率模式（默认）
+    const target = calcTarget({
+      monthlyIncome,
+      replacementRate: input.replacementRate,
+      inflationRate: input.inflationRate,
+      wageGrowthRate: input.socialWageGrowthRate,
+      yearsToRetirement: pre.yearsToRetirement,
+    });
+    targetMonthlyToday = target.targetMonthlyToday;
+    targetMonthlyAtRetirement = target.targetMonthlyAtRetirement;
+    totalFundingNeeded = calcTotalFundingNeeded(
+      targetMonthlyAtRetirement,
+      pre.yearsInRetirement,
+      pre.realReturn,
+    );
+    fixedIncomePV = calcTotalFundingNeeded(fixedIncomeMonthly, pre.yearsInRetirement, pre.realReturn);
+  }
+
+  // 将收入折现到今天以计算缺口（以通胀率折现）
   const totalMonthlyIncomeToday = totalMonthlyIncome /
     Math.pow(1 + input.inflationRate, pre.yearsToRetirement);
   const monthlyGap = Math.max(0, targetMonthlyToday - totalMonthlyIncomeToday);
 
   // 计算总缺口现值
-  const fixedIncomePV = calcTotalFundingNeeded(
-    fixedIncomeMonthly,
-    pre.yearsInRetirement,
-    pre.realReturn,
-  );
   const totalGapPV = Math.max(0, totalFundingNeeded - fixedIncomePV - retirementPool.balanceAtRetirement);
   const requiredMonthlySaving = calcRequiredMonthlySaving(totalGapPV, pre.yearsToRetirement, pre.nominalReturn);
 

@@ -7,7 +7,6 @@ import { X, TrendingUp, DollarSign, Percent, Users, PiggyBank, MapPin } from 'lu
 
 import {
   ALL_WAGE_HISTORIES,
-  getAllRegions,
   SOCIAL_INSURANCE_INTEREST_HISTORY,
   BANK_DEPOSIT_RATE_HISTORY,
   TREASURY_BOND_YIELD_HISTORY,
@@ -28,11 +27,10 @@ interface HistoricalDataViewerProps {
 }
 
 export function HistoricalDataViewer({ onClose }: HistoricalDataViewerProps) {
-  const [selectedRegion, setSelectedRegion] = useState('national');
   const [selectedLifeRegion, setSelectedLifeRegion] = useState('national');
 
-  // 准备工资数据
-  const regionHistory = ALL_WAGE_HISTORIES[selectedRegion];
+  // 准备工资数据（固定全国口径）
+  const regionHistory = ALL_WAGE_HISTORIES['national'];
   const wageData = regionHistory?.data.map(d => ({
     year: d.year,
     avgMonthlyWage: d.avgMonthlyWage,
@@ -98,14 +96,6 @@ export function HistoricalDataViewer({ onClose }: HistoricalDataViewerProps) {
   const lifeExpChartData = selectedLifeExpData?.data.map(d => ({
     year: d.year, male: d.male, female: d.female, total: d.total,
   })) ?? [];
-
-  // 从数据库读取所有省份，全国排第一，深圳放末尾
-  const allRegions = getAllRegions();
-  const regions = [
-    { code: 'national', name: '全国' },
-    ...allRegions.filter(r => r.code !== 'national' && r.code !== 'shenzhen'),
-    { code: 'shenzhen', name: '深圳（市）' },
-  ];
 
   // 判断某条记录是否有真实数据来源
   const isRealData = (source: string) =>
@@ -294,7 +284,7 @@ export function HistoricalDataViewer({ onClose }: HistoricalDataViewerProps) {
             </TabsTrigger> */}
             <TabsTrigger value="liferegion" className="flex items-center gap-1 text-xs py-2">
               <Users className="w-3 h-3" />
-              省级寿命
+              预期寿命
             </TabsTrigger>
             <TabsTrigger value="pension" className="flex items-center gap-1 text-xs py-2">
               <PiggyBank className="w-3 h-3" />
@@ -306,18 +296,8 @@ export function HistoricalDataViewer({ onClose }: HistoricalDataViewerProps) {
           <TabsContent value="wages" className="space-y-6">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>社会平均工资历史趋势</CardTitle>
-                  <select
-                    value={selectedRegion}
-                    onChange={(e) => setSelectedRegion(e.target.value)}
-                    className="px-3 py-2 border rounded-lg text-sm bg-white"
-                  >
-                    {regions.map(r => (
-                      <option key={r.code} value={r.code}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
+                <CardTitle>社会平均工资历史趋势</CardTitle>
+                <p className="text-xs text-gray-400 mt-1">口径：城镇非私营单位在岗职工平均工资（国家统计局·平均工资公报）</p>
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-3 gap-6 mb-2">
